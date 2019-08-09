@@ -1,0 +1,175 @@
+#!/usr/bin/python3
+# -*-coding:Utf-8 -*
+
+import sys, math, csv
+from signal import signal, SIGPIPE, SIG_DFL
+
+signal(SIGPIPE,SIG_DFL) 
+
+def derivative(t, x, y) :
+
+	return (y[t + 1] - y[t - 1]) / (x[t + 1] - x[t - 1])
+
+def sderivative(t, x, y) :
+
+	return (derivative(t + 1, x, y) - derivative(t - 1, x, y)) / (x[t + 1] - x[t - 1])
+
+def first_derivative(x, y) :
+
+	print("Derivative:")
+	n = len(x)
+	t = 1
+	D = 0
+	max = 0
+	tmax = 0
+	while t < n - 1 :
+		D = derivative(t, x, y)
+		if D > max :
+			max = D
+			tmax = int(x[t])
+		print("volume: " + str('%g' %x[t]) + " ml -> ", end="")
+		print('%.2f' %D)
+		t = t + 1
+	print("\nEquivalent point at " + str(tmax) + " ml\n")
+	return tmax
+
+def second_derivative(x, y) :
+
+	print("Second derivative:")
+	n = len(x)
+	t = 2
+	SD = 0
+	while t < n - 2 :
+		SD = sderivative(t, x, y)
+		print("volume: " + str('%g' %x[t]) + " ml -> " + str('%.2f' %SD))
+		t = t + 1
+
+def estimated(tmax, x, y) :
+
+	print("\nSecond derivative estimated:")
+	NB = (x[tmax] - x[tmax - 1]) / 0.1
+	P = ((sderivative(tmax, x, y) - sderivative(tmax - 1, x, y)) / (x[tmax] - x[tmax - 1])) * 0.1
+	k = 0
+	tzero = 0
+	zero = sderivative(tmax - 1, x, y) + P * k
+	while k < NB :
+		SDest = sderivative(tmax - 1, x, y) + P * k
+		if SDest < 0 :
+			if SDest * -1 < zero :
+				zero = SDest * -1
+				tzero = x[tmax - 1] + 0.1 * k
+		else :
+			if SDest < zero :
+				zero = SDest
+				tzero = x[tmax - 1] + 0.1 * k
+		print("volume: " + str('%g' %(x[tmax - 1] + 0.1 * k)) + " ml -> " + str('%.2f' %SDest))
+		k = k + 1
+
+	tmax = tmax + 1
+	NB = (x[tmax] - x[tmax - 1]) / 0.1
+	P = ((sderivative(tmax, x, y) - sderivative(tmax - 1, x, y)) / (x[tmax] - x[tmax - 1])) * 0.1
+	k = 0
+	while k <= NB :
+		SDest = sderivative(tmax - 1, x, y) + P * k
+		if SDest < 0 :
+			if SDest * -1 < zero :
+				zero = SDest * -1
+				tzero = x[tmax - 1] + 0.1 * k
+		else :
+			if SDest < zero :
+				zero = SDest
+				tzero = x[tmax - 1] + 0.1 * k
+		print("volume: " + str('%g' %(x[tmax - 1] + 0.1 * k)) + " ml -> " + str('%.2f' %SDest))
+		k = k + 1
+	print("\nEquivalent point at " + str(tzero) + " ml")
+
+def tiret_h ():
+
+	print("USAGE")
+	print("\t\t./109titration file\n")
+	print("DESCRIPTION")
+	print('\t\tfile a csv file containing "vol;ph" lines')
+	sys.exit(0)
+
+def error ():
+
+	print("TRY : ./109titration [file].csv")
+	sys.exit(84)
+
+def element_into_str (element) :
+
+	src = element
+	src = src.split(';')
+
+	return src
+
+x = []
+testx = []
+y = []
+testy = []
+
+try :
+
+	if sys.argv[1] == "-h" :
+
+		tiret_h()
+
+except IndexError :
+
+	error()
+
+if len(sys.argv) != 2 :
+
+	error()
+
+if sys.argv[1][len(sys.argv[1]) - 1] != 'v' :
+
+	error()
+
+try : 
+
+	csv = open(sys.argv[1], "r")
+	csv = csv.readlines()
+
+	for i in range (len(csv)) :
+
+		csv[i] = element_into_str(csv[i])
+		try :
+			testx.append(csv[i][0])
+			testy.append(csv[i][1])
+		except IndexError :
+			error()
+
+	for j in range (len(testy)) :
+
+		src = testy[j].replace("\n", "")
+		testy[j] = src
+
+	try :
+		y = [float(k) for k in testy]
+		x = [float(l) for l in testx]
+	except ValueError :
+		error()
+
+	for m in range (len(x)) :
+
+		if (float(x[m]) - int(x[m]) == 0) :
+
+			x[m] = int(x[m])
+
+except FileNotFoundError :
+
+	error()
+
+x.sort()
+y.sort()
+
+try :
+	
+	tmax = first_derivative(x, y)
+	second_derivative(x, y)
+	estimated(tmax - 1, x, y)
+
+except IndexError :
+
+	error()
